@@ -28,7 +28,9 @@ namespace AzFuncMonteCarlo
             var metadata = await client.WaitForInstanceCompletionAsync(instanceId, getInputsAndOutputs: true);
 
             var res = HttpResponseData.CreateResponse(req);
-            await res.WriteAsJsonAsync(metadata.ReadOutputAs<Response>());
+            var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            var jsonResponse = JsonSerializer.Serialize(metadata.ReadOutputAs<Response>(), options);
+            await res.WriteStringAsync(jsonResponse);
             return res;
         }
 
