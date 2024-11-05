@@ -14,29 +14,19 @@ namespace AzFuncMonteCarlo
     public class Durable
     {
         [Function("durable")]
-        public async Task<HttpResponseData> Starter([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req,[DurableClient] DurableTaskClient client)
+        public static async Task<HttpResponseData> Starter([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req,[DurableClient] DurableTaskClient client)
         {
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var config = JsonSerializer.Deserialize<Config>(requestBody);
-            if (config == null)
-            {
-                var badRequestResponse = req.CreateResponse(System.Net.HttpStatusCode.BadRequest);
-                return badRequestResponse;
-            }
+            Config? config = await req.ReadFromJsonAsync<Config>();
+            if (config is null) return req.CreateResponse(System.Net.HttpStatusCode.BadRequest);
 
             var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(Orchestration), config);
-            var metadata = await client.WaitForInstanceCompletionAsync(instanceId, getInputsAndOutputs: true);
-
-            var res = HttpResponseData.CreateResponse(req);
-            var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-            var jsonResponse = JsonSerializer.Serialize(metadata.ReadOutputAs<Response>(), options);
-            await res.WriteStringAsync(jsonResponse);
-            return res;
+            return client.CreateCheckStatusResponse(req, instanceId);
         }
 
         [Function(nameof(Orchestration))] 
-        public async Task<Response> Orchestration([OrchestrationTrigger] TaskOrchestrationContext context, Config config)
+        public static async Task<Response> Orchestration([OrchestrationTrigger] TaskOrchestrationContext context)
         {
+            Config config = context.GetInput<Config>()!;
             var response = new Response();
             var startTime = context.CurrentUtcDateTime;
 
@@ -47,8 +37,8 @@ namespace AzFuncMonteCarlo
                 parallelTasks.Add(task);
             }
 
-            await Task.WhenAll(parallelTasks);
-            response.Iterations = parallelTasks.Select(x => x.Result).ToList();
+           var iterations = (await Task.WhenAll(parallelTasks)).ToList();
+            response.Iterations = iterations;
 
             var endTime = context.CurrentUtcDateTime;
             var duration = (endTime - startTime).TotalSeconds;
@@ -57,12 +47,11 @@ namespace AzFuncMonteCarlo
             response.SimulatedAverageValue = response.Iterations.Average();
             response.SimulatedModeValue = response.Iterations.Mode();
 
-            // implementation
             return response;
         }
 
         [Function(nameof(IterationActivity))] 
-        public double IterationActivity([ActivityTrigger] double samplingPerIteration)
+        public static double IterationActivity([ActivityTrigger] double samplingPerIteration)
         {
             var inCircleCount = 0;
 
