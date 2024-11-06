@@ -263,4 +263,5 @@ paket-files/
 __pycache__/
 *.pyc
 __azurite_db_*.json
+__queuestorage__/*
 __blobstorage__/*

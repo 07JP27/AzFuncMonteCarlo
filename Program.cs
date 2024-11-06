@@ -9,17 +9,6 @@ var host = new HostBuilder()
     .ConfigureServices(services => {
         services.AddApplicationInsightsTelemetryWorkerService();
         services.ConfigureFunctionsApplicationInsights();
-        // If using Kestrel:
-        services.Configure<KestrelServerOptions>(options =>
-        {
-            options.AllowSynchronousIO = true;
-        });
-
-        // If using IIS:
-        services.Configure<IISServerOptions>(options =>
-        {
-            options.AllowSynchronousIO = true;
-        });
     })
     .Build();
 

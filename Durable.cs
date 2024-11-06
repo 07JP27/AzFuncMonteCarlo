@@ -1,9 +1,5 @@
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.DurableTask.Client;
 using Microsoft.DurableTask;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -20,7 +16,7 @@ namespace AzFuncMonteCarlo
             if (config is null) return req.CreateResponse(System.Net.HttpStatusCode.BadRequest);
 
             var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(Orchestration), config);
-            return client.CreateCheckStatusResponse(req, instanceId);
+            return await client.CreateCheckStatusResponseAsync(req, instanceId);
         }
 
         [Function(nameof(Orchestration))] 
